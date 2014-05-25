@@ -6,6 +6,9 @@ angular.module('ngScrollbar', []).
       restrict: 'A',
       replace: true,
       transclude: true,
+      scope: {
+        onScroll: '&'  
+      },
       link: function(scope, element, attrs) {
 
         var mainElm, transculdedContainer, tools, thumb, thumbLine, track;
@@ -67,6 +70,12 @@ angular.module('ngScrollbar', []).
           var offsetY = event.hasOwnProperty('offsetY') ? event.offsetY : event.layerY;
           var newTop = Math.max(0, Math.min(parseInt(dragger.trackHeight, 10) - parseInt(dragger.height, 10), offsetY));
 
+          scope.onScroll({
+              $event: {
+                  type: 'scrollbarClickScroll'
+              }
+          });
+
           dragger.top = newTop;
           redraw();
 
@@ -84,6 +93,13 @@ angular.module('ngScrollbar', []).
               -event.detail * (wheelDivider / 10);
 
           dragger.top = Math.max(0, Math.min(parseInt(page.height, 10) - parseInt(dragger.height, 10), parseInt(dragger.top, 10) - deltaY));
+          
+          scope.onScroll({
+              $event: {
+                  type: 'wheelScroll'
+              }
+          });
+          
           redraw();
 
           if (!!event.preventDefault) {
@@ -153,7 +169,22 @@ angular.module('ngScrollbar', []).
             // Drag the scroller
             thumb.on('mousedown', function(event) {
               lastOffsetY = event.pageY - thumb[0].offsetTop;
+              var lastMousedownTime = +(new Date());
+              
+              scope.onScroll({
+                $event: {
+                    type: 'scrollbarMousedown'
+                }
+              });
+              
               win.on('mouseup', function() {
+                scope.onScroll({
+                  $event: {
+                      type: 'scrollbarMouseup',
+                      durationMs: +(new Date()) - lastMousedownTime
+                  }
+                });
+                
                 win.off('mousemove', dragHandler);
                 event.stopPropagation();
               });
