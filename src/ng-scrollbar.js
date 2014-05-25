@@ -13,6 +13,25 @@ angular.module('ngScrollbar', []).
 
         var mainElm, transculdedContainer, tools, thumb, thumbLine, track;
 
+        var keyBindings = {
+          pageUp: {
+            keyCode: 33,
+            offsetY: -340
+          },
+          pageDown: {
+            keyCode: 34,
+            offsetY: 340
+          },
+          up: {
+            keyCode: 38,
+            offsetY: -10
+          },
+          down: {
+            keyCode: 40,
+            offsetY: 10
+          }
+        };
+
         var flags = {
           bottom: attrs.hasOwnProperty('bottom')
         };
@@ -126,6 +145,20 @@ angular.module('ngScrollbar', []).
           redraw();
         };
 
+        var keyboardHandler = function (keyName, offsetY) {
+          dragger.top = Math.max(0, Math.min(
+            parseInt(dragger.trackHeight, 10) - parseInt(dragger.height, 10), (dragger.top + offsetY)
+          ));
+
+          scope.onScroll({
+            $event: {
+              type: keyName + 'ScrollKeypress'
+            }
+          });
+
+          redraw();
+        };
+
         var buildScrollbar = function(rollToBottom) {
 
           // Getting top position of a parent element to place scroll correctly
@@ -192,6 +225,39 @@ angular.module('ngScrollbar', []).
               event.preventDefault();
             });
 
+            angular.forEach(keyBindings, function (opts, keyName) {
+              var lastKeydownTime = null;
+
+              win.on('keydown', function (e) {
+                if (e.keyCode === opts.keyCode) {
+                  if (!lastKeydownTime) {
+                    lastKeydownTime = +(new Date());
+                  }
+
+                  keyboardHandler(keyName, opts.offsetY);
+                  e.preventDefault();
+                }
+              });
+
+              win.on('keyup', function (e) {
+                if (e.keyCode === opts.keyCode) {
+                  if (lastKeydownTime) {
+                    var durationMs = +(new Date()) - lastKeydownTime;
+                    lastKeydownTime = null;
+
+                    scope.onScroll({
+                      $event: {
+                        type: keyName + 'ScrollKeyup',
+                        durationMs: durationMs
+                      }
+                    });
+                  }
+
+                  e.preventDefault();
+                }
+              });
+            });            
+
             if (rollToBottom) {
               flags.bottom = false;
               dragger.top = parseInt(page.height, 10) - parseInt(dragger.height, 10);
@@ -203,6 +269,9 @@ angular.module('ngScrollbar', []).
           } else {
             scope.showYScrollbar = false;
             thumb.off('mousedown');
+            win.off('keydown');
+            win.off('keypress');
+            win.off('keyup');
             transculdedContainer[0].removeEventListener(wheelEvent, wheelHandler, false);
             transculdedContainer.attr('style', 'position:relative;top:0'); // little hack to remove other inline styles
             mainElm.css({height: '100%'});
